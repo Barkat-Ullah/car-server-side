@@ -11,6 +11,10 @@ app.use(cors({
   origin: ['http://localhost:5173'],
   credentials: true
 }))
+// {
+//   origin: ['http://localhost:5173'],
+//   credentials: true
+// }
 
 app.use(express.json())
 app.use(cookieParser())
@@ -27,7 +31,7 @@ const client = new MongoClient(uri, {
 });
 
 const logger = (req, res, next) => {
-  console.log('called : ', req.host, req.originalUrl);
+  console.log('called : ', req.method, req.url);
   next()
 }
 const verifyToken = async(req, res, next) => {
@@ -47,6 +51,11 @@ const verifyToken = async(req, res, next) => {
   })
 
 }
+// const verifyToken = async(req, res, next) => {
+//   const token = req.cookies?.token;
+//   console.log('verify token', token);
+//   next()
+// }
 
 async function run() {
   try {
@@ -57,18 +66,35 @@ async function run() {
     const bookingCollection = client.db('carDoctor').collection('bookings')
 
     // auth jwt related
+    // app.post('/jwt', logger, async(req, res) => {
+    //   const user = req.body;
+    //   console.log(user);
+    //   // const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+    //   const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '1h'})
+    //   res
+    //   .cookie('token', token, {
+    //     httpOnly: true,
+    //     secure: false,
+  
+    //   })
+    //   .send({success: true})
+    // })
+
     app.post('/jwt', logger, async(req, res) => {
       const user = req.body;
       console.log(user);
-      // const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '1h'})
-      res
-      .cookie('token', token, {
+      res.cookie('token', token, {
         httpOnly: true,
-        secure: false,
-  
+        secure: false
       })
-      .send({success: true})
+      .send({success : true})
+    })
+
+    app.post('/logout', async(req, res) => {
+      const user = req.body;
+      console.log('logging out', user);
+      res.clearCookie('token', {maxAge: 0}).send({success: true})
     })
 
     // services related api
@@ -85,12 +111,12 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/bookings', logger, verifyToken, async(req, res) => {
-      console.log(req.query);
-      // console.log('token..', req.cookies.token);
-       console.log('user in the valid token', req.user);
+    app.get('/bookings',logger, verifyToken, async(req, res) => {
+      console.log(req.query.email);
+      console.log('token..', req.cookies.token);
+       console.log('token of owner', req.user);
 
-        if(req.query.email !== req.user.email){
+        if(req.query.email !== req.user?.email){
           return res.status(403).send({message: 'forbidden access'})
         }
 
